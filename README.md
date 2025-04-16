@@ -4,7 +4,7 @@ Click the mouse wheel to paste.
 
 Side button 1 opens Windows Clipboard.
 
-Sibe button 2 opens Ditto if it is installed (better clipboard manager).
+Sibe button 2 opens Ditto if it's installed (better clipboard manager).
 
 Hold left then click right to copy.
 

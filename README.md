@@ -1,5 +1,4 @@
-# AutoHotkey
-AutoHotkey script for mouse. AutoHotkey v2.0.19 needed.
+# AutoHotkey script for easy copy/paste. v2.0.19 needed. 
 
 Click the mouse wheel to paste.
 

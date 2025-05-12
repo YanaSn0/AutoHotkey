@@ -6,7 +6,9 @@ Click the mouse wheel to paste.
 
 Side button 1 opens Windows Clipboard manager.
 
-Side button 2 opens Ditto Clipboard. Download and install it.
+Side button 2 opens Ditto Clipboard.
+
+Download and install it.
 
 https://ditto-cp.sourceforge.io/
 

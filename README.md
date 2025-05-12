@@ -1,4 +1,4 @@
-# AutoHotkey script for easy copy/paste. v2.0.19 needed. 
+# AutoHotkey script for easy copy/paste. v2 needed.
 
 Click the mouse wheel to paste.
 
@@ -10,3 +10,4 @@ Hold left and press right to copy.
 
 Hold left and press right 2 times to select all.
 
+https://drive.google.com/file/d/1Op2glBOkGftF3Sy8vCQXu259nrg6GUeb/view

@@ -16,4 +16,6 @@ Hold left press right to copy. Hold left press right 2 times to select all.
 
 How to change the database file. 
 
-3 dot bottom right restore database, mine has a lot but can use search.
+3 dot bottom right restore database.
+
+Mine comes included and has a lot but can use search.

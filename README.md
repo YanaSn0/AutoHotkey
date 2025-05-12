@@ -1,4 +1,6 @@
-# AutoHotkey v2 script.
+# Install Autohotkey V2 then double click the script.
+
+https://www.autohotkey.com/
 
 Click the mouse wheel to paste.
 

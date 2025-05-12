@@ -4,14 +4,12 @@ Click the mouse wheel to paste.
 
 Side button 1 opens Windows Clipboard manager.
 
-Side button 2 opens Ditto. Download and install it.
+Side button 2 opens Ditto Clipboard. Download and install it.
 
 https://ditto-cp.sourceforge.io/
 
 Hold left press right to copy. Hold left press right 2 times to select all.
 
-Video shows how to change the database file. 
+How to change the database file. 
 
-Open Ditto > Ctrl + A > right click > delete entry to wipe them all.
-
-https://drive.google.com/file/d/1Op2glBOkGftF3Sy8vCQXu259nrg6GUeb/view
+3 dot bottom right restore database, mine has a lot but can use search.

@@ -1,4 +1,6 @@
-# Download and install Autohotkey V2 and Ditto then double click the script.
+# Autohotkey script
+
+Download and install Autohotkey V2 and Ditto then double click the script.
 
 https://www.autohotkey.com/
 

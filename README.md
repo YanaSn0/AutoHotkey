@@ -9,6 +9,5 @@ Side button 2 opens Ditto. Download and install it.
 
 Hold left press right to copy. Hold left press right 2 times to select all.
 
-Video shows how to change the database file. I only have the 1 huge one but 
-  could make others to load this way
+Video shows how to change the database file.
   https://drive.google.com/file/d/1Op2glBOkGftF3Sy8vCQXu259nrg6GUeb/view

@@ -18,7 +18,9 @@ Hold right press wheel is enter/return
 
 Hold right and scroll 1 time is auto scroll 100ms 
 
-2nd scroll is 50ms 3rd is 25ms intervals
+2nd scroll is 50ms 3rd is 25ms 4th 15ms, enabling the 
+
+fourth speed tier (approximately 66.67 scrolls per second)
 
 How to change the database file. 
 

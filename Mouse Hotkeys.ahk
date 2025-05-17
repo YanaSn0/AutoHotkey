@@ -1,4 +1,4 @@
-﻿#SingleInstance Force  ; Ensures only one instance of the script is running
+#SingleInstance Force  ; Ensures only one instance of the script is running
 
 ; Initialize global variables at script startup
 SetTimer(InitializeGlobals, -1)
@@ -9,6 +9,7 @@ InitializeGlobals()
     global doubleClickInterval := 300  ; Double-click interval in milliseconds
     global rButtonPressTime := 0  ; Track the time of the first RButton press
     global lButtonHeld := false  ; Track if LButton is held
+    global mButtonPressed := false  ; Track if MButton was pressed during RButton hold
     return
 }
 
@@ -28,18 +29,27 @@ XButton2::
     return
 }
 
-; Middle mouse button: Paste
+; Middle mouse button: Paste or Enter if RButton is held
 MButton::
 {
-    Send("^v")  ; Ctrl + V (paste)
-    Sleep(50)  ; Small delay to ensure the paste completes properly
+    global mButtonPressed
+    if (GetKeyState("RButton", "P"))  ; Check if RButton is physically held
+    {
+        Send("{Enter}")  ; Send Enter key
+        mButtonPressed := true  ; Mark that MButton was pressed during RButton hold
+    }
+    else
+    {
+        Send("^v")  ; Ctrl + V (paste)
+        Sleep(50)  ; Small delay to ensure the paste completes properly
+    }
     return
 }
 
-; Right mouse button handler: Check if LButton is held
+; Right mouse button handler: Check if LButton is held or MButton was pressed
 RButton::
 {
-    global lastRButtonTime, doubleClickInterval, rButtonPressTime, lButtonHeld
+    global lastRButtonTime, doubleClickInterval, rButtonPressTime, lButtonHeld, mButtonPressed
 
     ; Check if LButton is held at the start of the RButton press
     lButtonHeld := GetKeyState("LButton", "P")
@@ -66,10 +76,15 @@ RButton::
     }
     else
     {
-        ; Simulate a right-click to open the context menu
-        Send("{RButton down}")
+        ; Reset mButtonPressed at the start of RButton press
+        mButtonPressed := false
+        ; Wait for RButton release and monitor MButton presses
         KeyWait("RButton")  ; Wait for the physical button to be released
-        Send("{RButton up}")
+        ; Only simulate right-click if MButton was not pressed
+        if (!mButtonPressed)
+        {
+            Send("{RButton}")  ; Simulate right-click to open context menu
+        }
     }
     return
 }

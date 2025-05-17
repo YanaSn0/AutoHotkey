@@ -73,6 +73,12 @@ MButton::
             autoScrollInterval := 25
             SetTimer AutoScroll, autoScrollInterval
         }
+        else if scrollCount = 4
+        {
+            ; Fourth scroll: Speed 4 (15ms, ~66.67 scrolls/sec)
+            autoScrollInterval := 15
+            SetTimer AutoScroll, autoScrollInterval
+        }
     }
     else
     {
@@ -108,6 +114,12 @@ MButton::
         {
             ; Third scroll: Speed 3 (25ms, 40 scrolls/sec)
             autoScrollInterval := 25
+            SetTimer AutoScroll, autoScrollInterval
+        }
+        else if scrollCount = 4
+        {
+            ; Fourth scroll: Speed 4 (15ms, ~66.67 scrolls/sec)
+            autoScrollInterval := 15
             SetTimer AutoScroll, autoScrollInterval
         }
     }

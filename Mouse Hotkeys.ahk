@@ -4,43 +4,67 @@
 global lastRButtonTime := 0
 global doubleClickInterval := 300  ; Double-click interval in milliseconds
 global rButtonPressTime := 0  ; Track the time of the first RButton press
-global lButtonHeld := false  ; Track if LButton is held
 global mButtonPressed := false  ; Track if MButton or scroll was used during RButton hold
 global autoScrollActive := false  ; Track if auto-scroll is active
 global autoScrollDirection := ""  ; "up" or "down"
-global autoScrollInterval := 100  ; Initial interval in ms (speed 1)
+global autoScrollInterval := 100  ; Initial interval in ms (speed 1: 100ms)
 global scrollCount := 0  ; Count scrolls during RButton hold
+global lastWheelDirection := ""  ; Track the last wheel direction
 
-; XButton1: Open Ditto
+; XButton1: Open Ditto or send Down
 XButton1::
 {
+    global autoScrollActive, mButtonPressed
+    if (autoScrollActive)  ; Stop auto-scroll on any button press
+    {
+        autoScrollActive := false
+        SetTimer AutoScroll, 0  ; Stop the timer
+        return
+    }
+    if GetKeyState("RButton", "P")  ; If RButton is held
+    {
+        Send "{Down}"  ; Send Down arrow
+        mButtonPressed := true  ; Suppress context menu
+        return
+    }
     Send "^``"  ; Ctrl + ` (backtick) to open Ditto
     return
 }
 
-; XButton2: Open clipboard history
+; XButton2: Open clipboard history or send Up
 XButton2::
 {
+    global autoScrollActive, mButtonPressed
+    if (autoScrollActive)  ; Stop auto-scroll on any button press
+    {
+        autoScrollActive := false
+        SetTimer AutoScroll, 0  ; Stop the timer
+        return
+    }
+    if GetKeyState("RButton", "P")  ; If RButton is held
+    {
+        Send "{Up}"  ; Send Up arrow
+        mButtonPressed := true  ; Suppress context menu
+        return
+    }
     Send "{LWin down}"  ; Press the Windows key
     Send "v"            ; Press the V key
     Send "{LWin up}"    ; Release the Windows key
     return
 }
 
-; Middle mouse button: Paste or Enter if RButton is held
+; Middle mouse button: Paste
 MButton::
 {
-    global mButtonPressed
-    if GetKeyState("RButton", "P")  ; Check if RButton is physically held
+    global autoScrollActive
+    if (autoScrollActive)  ; Stop auto-scroll on any button press
     {
-        Send "{Enter}"  ; Send Enter key
-        mButtonPressed := true  ; Mark that MButton was pressed
+        autoScrollActive := false
+        SetTimer AutoScroll, 0  ; Stop the timer
+        return
     }
-    else
-    {
-        Send "^v"  ; Ctrl + V (paste)
-        Sleep 50  ; Small delay to ensure the paste completes properly
-    }
+    Send "^v"  ; Ctrl + V (paste)
+    Sleep 50  ; Small delay to ensure the paste completes properly
     return
 }
 
@@ -48,63 +72,70 @@ MButton::
 *WheelUp::
 {
     global autoScrollActive, autoScrollDirection, autoScrollInterval, scrollCount, mButtonPressed
+    global lastWheelDirection
     if GetKeyState("RButton", "P")  ; Check if RButton is held
     {
         mButtonPressed := true  ; Suppress context menu
         scrollCount += 1
-        if !autoScrollActive
+
+        ; Track wheel direction
+        lastWheelDirection := "up"
+
+        if (!autoScrollActive)
         {
-            ; Start auto-scroll up (Speed 1: 100ms, 10 scrolls/sec)
+            ; Start auto-scroll up (Speed 1: 100ms)
             autoScrollActive := true
             autoScrollDirection := "up"
             autoScrollInterval := 100  ; Speed 1
             scrollCount := 1
+            lastWheelDirection := "up"
             SetTimer AutoScroll, autoScrollInterval
-        }
-        else if scrollCount = 2
-        {
-            ; Second scroll: Speed 2 (50ms, 20 scrolls/sec)
-            autoScrollInterval := 50
-            SetTimer AutoScroll, autoScrollInterval
-        }
-        else if scrollCount = 3
-        {
-            ; Third scroll: Speed 3 (25ms, 40 scrolls/sec)
-            autoScrollInterval := 25
-            SetTimer AutoScroll, autoScrollInterval
-        }
-        else if scrollCount = 4
-        {
-            ; Fourth scroll: Speed 4 (15ms, ~66.67 scrolls/sec)
-            autoScrollInterval := 15
-            SetTimer AutoScroll, autoScrollInterval
-        }
-    }
-    else
-    {
-        if GetKeyState("Ctrl", "P")  ; Check if Ctrl is held
-        {
-            Send "{Ctrl down}"
-            Send "{WheelUp}"  ; Send Ctrl + WheelUp for zooming
-            Send "{Ctrl up}"
-        }
-        else if GetKeyState("Shift", "P")  ; Check if Shift is held
-        {
-            Send "{Shift down}"
-            Send "{WheelUp}"  ; Send Shift + WheelUp for horizontal scrolling
-            Send "{Shift up}"
-        }
-        else if GetKeyState("Alt", "P")  ; Check if Alt is held
-        {
-            Send "{Alt down}"
-            Send "{WheelUp}"  ; Send Alt + WheelUp for app-specific actions
-            Send "{Alt up}"
         }
         else
         {
-            Send "{WheelUp}"  ; Normal scroll up
+            ; Adjust speed based on direction
+            if (autoScrollDirection = "up")
+            {
+                ; Increase speed (decrease interval)
+                if (autoScrollInterval = 100)
+                    autoScrollInterval := 50  ; Speed 2
+                else if (autoScrollInterval = 50)
+                    autoScrollInterval := 1   ; Speed 3 (fastest)
+            }
+            else
+            {
+                ; Stop immediately when scrolling in the opposite direction
+                autoScrollActive := false
+                SetTimer AutoScroll, 0  ; Stop the timer
+                return
+            }
+            SetTimer AutoScroll, autoScrollInterval
         }
+        return
     }
+    ; Allow normal scrolling if auto-scroll is not active
+    if GetKeyState("Ctrl", "P")  ; Check if Ctrl is held
+    {
+        Send "{Ctrl down}"
+        Send "{WheelUp}"  ; Send Ctrl + WheelUp for zooming
+        Send "{Ctrl up}"
+        return
+    }
+    else if GetKeyState("Shift", "P")  ; Check if Shift is held
+    {
+        Send "{Shift down}"
+        Send "{WheelUp}"  ; Send Shift + WheelUp for horizontal scrolling
+        Send "{Shift up}"
+        return
+    }
+    else if GetKeyState("Alt", "P")  ; Check if Alt is held
+    {
+        Send "{Alt down}"
+        Send "{WheelUp}"  ; Send Alt + WheelUp for app-specific actions
+        Send "{Alt up}"
+        return
+    }
+    Send "{WheelUp}"  ; Normal scroll up
     return
 }
 
@@ -112,63 +143,70 @@ MButton::
 *WheelDown::
 {
     global autoScrollActive, autoScrollDirection, autoScrollInterval, scrollCount, mButtonPressed
+    global lastWheelDirection
     if GetKeyState("RButton", "P")  ; Check if RButton is held
     {
         mButtonPressed := true  ; Suppress context menu
         scrollCount += 1
-        if !autoScrollActive
+
+        ; Track wheel direction
+        lastWheelDirection := "down"
+
+        if (!autoScrollActive)
         {
-            ; Start auto-scroll down (Speed 1: 100ms, 10 scrolls/sec)
+            ; Start auto-scroll down (Speed 1: 100ms)
             autoScrollActive := true
             autoScrollDirection := "down"
             autoScrollInterval := 100  ; Speed 1
             scrollCount := 1
+            lastWheelDirection := "down"
             SetTimer AutoScroll, autoScrollInterval
-        }
-        else if scrollCount = 2
-        {
-            ; Second scroll: Speed 2 (50ms, 20 scrolls/sec)
-            autoScrollInterval := 50
-            SetTimer AutoScroll, autoScrollInterval
-        }
-        else if scrollCount = 3
-        {
-            ; Third scroll: Speed 3 (25ms, 40 scrolls/sec)
-            autoScrollInterval := 25
-            SetTimer AutoScroll, autoScrollInterval
-        }
-        else if scrollCount = 4
-        {
-            ; Fourth scroll: Speed 4 (15ms, ~66.67 scrolls/sec)
-            autoScrollInterval := 15
-            SetTimer AutoScroll, autoScrollInterval
-        }
-    }
-    else
-    {
-        if GetKeyState("Ctrl", "P")  ; Check if Ctrl is held
-        {
-            Send "{Ctrl down}"
-            Send "{WheelDown}"  ; Send Ctrl + WheelDown for zooming
-            Send "{Ctrl up}"
-        }
-        else if GetKeyState("Shift", "P")  ; Check if Shift is held
-        {
-            Send "{Shift down}"
-            Send "{WheelDown}"  ; Send Shift + WheelDown for horizontal scrolling
-            Send "{Shift up}"
-        }
-        else if GetKeyState("Alt", "P")  ; Check if Alt is held
-        {
-            Send "{Alt down}"
-            Send "{WheelDown}"  ; Send Alt + WheelDown for app-specific actions
-            Send "{Alt up}"
         }
         else
         {
-            Send "{WheelDown}"  ; Normal scroll down
+            ; Adjust speed based on direction
+            if (autoScrollDirection = "down")
+            {
+                ; Increase speed (decrease interval)
+                if (autoScrollInterval = 100)
+                    autoScrollInterval := 50  ; Speed 2
+                else if (autoScrollInterval = 50)
+                    autoScrollInterval := 1   ; Speed 3 (fastest)
+            }
+            else
+            {
+                ; Stop immediately when scrolling in the opposite direction
+                autoScrollActive := false
+                SetTimer AutoScroll, 0  ; Stop the timer
+                return
+            }
+            SetTimer AutoScroll, autoScrollInterval
         }
+        return
     }
+    ; Allow normal scrolling if auto-scroll is not active
+    if GetKeyState("Ctrl", "P")  ; Check if Ctrl is held
+    {
+        Send "{Ctrl down}"
+        Send "{WheelDown}"  ; Send Ctrl + WheelDown for zooming
+        Send "{Ctrl up}"
+        return
+    }
+    else if GetKeyState("Shift", "P")  ; Check if Shift is held
+    {
+        Send "{Shift down}"
+        Send "{WheelDown}"  ; Send Shift + WheelDown for horizontal scrolling
+        Send "{Shift up}"
+        return
+    }
+    else if GetKeyState("Alt", "P")  ; Check if Alt is held
+    {
+        Send "{Alt down}"
+        Send "{WheelDown}"  ; Send Alt + WheelDown for app-specific actions
+        Send "{Alt up}"
+        return
+    }
+    Send "{WheelDown}"  ; Normal scroll down
     return
 }
 
@@ -176,17 +214,15 @@ MButton::
 AutoScroll()
 {
     global autoScrollActive, autoScrollDirection
-    if !autoScrollActive || !GetKeyState("RButton", "P")
+    if (!autoScrollActive)
     {
-        ; Stop auto-scroll
-        autoScrollActive := false
         SetTimer AutoScroll, 0  ; Stop the timer
         return
     }
     ; Send scroll event based on direction
-    if autoScrollDirection = "up"
+    if (autoScrollDirection = "up")
         Send "{WheelUp}"
-    else if autoScrollDirection = "down"
+    else if (autoScrollDirection = "down")
         Send "{WheelDown}"
     return
 }
@@ -194,56 +230,75 @@ AutoScroll()
 ; Right mouse button press: Handle LButton-held logic
 RButton::
 {
-    global lastRButtonTime, doubleClickInterval, rButtonPressTime, lButtonHeld, mButtonPressed
-    global autoScrollActive, scrollCount
-
-    ; Check if LButton is held at the start of the RButton press
-    lButtonHeld := GetKeyState("LButton", "P")
-
-    if lButtonHeld
+    global lastRButtonTime, doubleClickInterval, rButtonPressTime, mButtonPressed, scrollCount
+    if GetKeyState("LButton", "P")  ; If LButton is held
     {
         currentTime := A_TickCount
-        if currentTime - lastRButtonTime <= doubleClickInterval
+        if (currentTime - lastRButtonTime <= doubleClickInterval)
         {
             ; Double-click detected
             Send "^a"  ; Ctrl + A (select all)
+            mButtonPressed := true  ; Suppress context menu
             lastRButtonTime := 0  ; Reset the timer
             rButtonPressTime := 0  ; Reset the first press time
             KeyWait "RButton"  ; Wait for RButton to be released
+            return
         }
-        else
-        {
-            ; First press: Execute the copy action
-            Send "^c"  ; Ctrl + C (copy)
-            lastRButtonTime := currentTime
-            rButtonPressTime := currentTime
-            KeyWait "RButton"  ; Wait for RButton to be released
-        }
+        ; First press: Execute the copy action
+        Send "^c"  ; Ctrl + C (copy)
+        mButtonPressed := true  ; Suppress context menu
+        lastRButtonTime := currentTime
+        rButtonPressTime := currentTime
+        KeyWait "RButton"  ; Wait for RButton to be released
+        return
     }
-    else
+    ; Reset state at start of RButton press
+    mButtonPressed := false
+    scrollCount := 0
+    KeyWait "RButton"  ; Wait for the physical button to be released
+    return
+}
+
+; Right mouse button release: Handle context menu
+RButton up::
+{
+    global autoScrollActive, mButtonPressed
+    if (autoScrollActive)  ; Stop auto-scroll on right-click
     {
-        ; Reset state at start of RButton press
-        mButtonPressed := false
-        scrollCount := 0
-        KeyWait "RButton"  ; Wait for the physical button to be released
+        autoScrollActive := false
+        SetTimer AutoScroll, 0  ; Stop the timer
+        return  ; Suppress context menu
+    }
+    ; Only simulate right-click if no MButton or scroll events occurred
+    if (!mButtonPressed)
+    {
+        Send "{RButton}"  ; Simulate right-click to open context menu
     }
     return
 }
 
-; Right mouse button release: Handle context menu and stop auto-scroll
-RButton up::
+; Left mouse button press: Handle RButton-held logic or stop auto-scroll
+LButton::
 {
     global autoScrollActive, mButtonPressed
-    ; Stop auto-scroll if active
-    if autoScrollActive
+    if (autoScrollActive)  ; Stop auto-scroll on any button press
     {
         autoScrollActive := false
         SetTimer AutoScroll, 0  ; Stop the timer
+        return
     }
-    ; Only simulate right-click if no MButton or scroll events occurred
-    if !mButtonPressed
+    if GetKeyState("RButton", "P")  ; If RButton is held
     {
-        Send "{RButton}"  ; Simulate right-click to open context menu
+        mButtonPressed := true  ; Set flag to suppress context menu
+        Send "{Enter}"  ; Send Enter key
+        return
     }
+    Send "{LButton down}"  ; Normal left-click down to allow dragging
+    return
+}
+
+LButton up::
+{
+    Send "{LButton up}"  ; Normal left-click up to complete drag
     return
 }

@@ -2,28 +2,25 @@
 
 Download and install Autohotkey V2 and Ditto then double click the script.
 
-https://www.autohotkey.com/
+https://www.autohotkey.com/ https://ditto-cp.sourceforge.io/
 
-https://ditto-cp.sourceforge.io/
+Copy: Right click while holding left
 
-Mouse wheel click to paste.
+Select all: Right 2 times while holding left
 
-Side button 1 opens Windows Clipboard manager.
+Paste: Wheel click
 
-Side button 2 opens Ditto Clipboard.
+Enter: Left click while holding right.
 
-Hold left press right to copy. Hold left press right 2 times to select all.
+Auto scroll: Scroll 1 to 3 while holding right 100 50 1ms
 
-Hold right press wheel is enter/return
+Side button 1: Ditto Clipboard manager.
 
-Hold right and scroll 1 time is auto scroll 100ms 
+Side button 2: Windows Clipboard.
 
-2nd scroll is 50ms 3rd is 25ms 4th 15ms, enabling the 
+Database file: 3 dot bottom right restore or backup, 
 
-fourth speed tier (approximately 66.67 scrolls per second)
+Select all (ctrl + a) then delete entry to delete them from the database.
 
-How to change the database file. 
-
-3 dot bottom right restore database.
-
-Mine comes included and has a lot but can use search.
+hold ctrl then click them to select multiple, quick properties > never auto delete or auto delete, 3 dots delete all non used clips clips
+should be done often to clear other junk clips

@@ -14,6 +14,12 @@ Side button 2 opens Ditto Clipboard.
 
 Hold left press right to copy. Hold left press right 2 times to select all.
 
+Hold right press wheeel is enter/return
+
+Hold right and scroll 1 time is auto scroll 100ms 
+
+2nd scroll is 50ms 3rd is 25ms intervals
+
 How to change the database file. 
 
 3 dot bottom right restore database.

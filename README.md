@@ -14,7 +14,7 @@ Side button 2 opens Ditto Clipboard.
 
 Hold left press right to copy. Hold left press right 2 times to select all.
 
-Hold right press wheeel is enter/return
+Hold right press wheel is enter/return
 
 Hold right and scroll 1 time is auto scroll 100ms 
 

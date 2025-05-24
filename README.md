@@ -14,7 +14,7 @@ Enter: Left click while holding right.
 
 Up and down: 2 side buttons while holding right.
 
-Auto scroll: Scroll 1 to 3 while holding right 100 50 1ms
+Auto scroll: Scroll 1 to 3 while holding right (or left if selecting text) 100 50 1ms
 
 Side button 1: Ditto Clipboard manager.
 

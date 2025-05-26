@@ -16,6 +16,8 @@ Up and down: 2 side buttons while holding right.
 
 Auto scroll: Scroll 1 to 3 while holding right (or left if selecting text) 100 50 1ms, press any key to stop.
 
+Auto Scoll Mode: Wheel click while holding right. Mode 1 stops when release button, mode 2 doesn't, any button to stop.
+
 Side button 1: Ditto Clipboard manager.
 
 Side button 2: Windows Clipboard.

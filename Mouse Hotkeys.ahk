@@ -12,6 +12,9 @@ scrollCount := 0  ; Count scrolls during LButton or RButton hold
 lastWheelDirection := ""  ; Track the last wheel direction
 rButtonPressCount := 0  ; Track number of RButton presses while LButton is held
 
+; Use a generic path in the temp directory for the log file
+logFile := A_Temp "\MouseHotkeysLog.txt"
+
 ; Fail-safe hotkey to exit the script (Ctrl+Shift+Esc)
 ^+Esc::
 {
@@ -31,7 +34,7 @@ CloseContextMenu()
     }
 }
 
-; XButton1: Not applicable for a 2-button mouse, but kept for compatibility
+; XButton1: Stop auto-scroll and handle Ditto or Down arrow
 XButton1::
 {
     global autoScrollActive, mButtonPressed
@@ -39,6 +42,7 @@ XButton1::
     {
         autoScrollActive := false
         SetTimer(AutoScroll, 0)  ; Stop the timer
+        CloseContextMenu()  ; Close any open context menu
         return
     }
     if GetKeyState("RButton", "P")  ; If RButton is held
@@ -51,7 +55,7 @@ XButton1::
     return
 }
 
-; XButton2: Not applicable for a 2-button mouse, but kept for compatibility
+; XButton2: Stop auto-scroll and handle Win+V or Up arrow
 XButton2::
 {
     global autoScrollActive, mButtonPressed
@@ -59,6 +63,7 @@ XButton2::
     {
         autoScrollActive := false
         SetTimer(AutoScroll, 0)  ; Stop the timer
+        CloseContextMenu()  ; Close any open context menu
         return
     }
     if GetKeyState("RButton", "P")  ; If RButton is held
@@ -73,7 +78,7 @@ XButton2::
     return
 }
 
-; Middle mouse button: Paste (not applicable for a 2-button mouse, but kept for compatibility)
+; Middle mouse button: Stop auto-scroll and paste
 MButton::
 {
     global autoScrollActive
@@ -81,6 +86,7 @@ MButton::
     {
         autoScrollActive := false
         SetTimer(AutoScroll, 0)  ; Stop the timer
+        CloseContextMenu()  ; Close any open context menu
         return
     }
     Send("^v")  ; Ctrl + V (paste)
@@ -247,17 +253,26 @@ AutoScroll()
     return
 }
 
-; Right mouse button press: Handle LButton-held logic
+; Right mouse button press: Handle LButton-held logic and stop auto-scroll
 RButton::
 {
-    global lastRButtonTime, rButtonPressTime, mButtonPressed, scrollCount, rButtonPressCount
+    global lastRButtonTime, rButtonPressTime, mButtonPressed, scrollCount, rButtonPressCount, autoScrollActive
+    if (autoScrollActive)  ; Stop auto-scroll on any button press
+    {
+        autoScrollActive := false
+        SetTimer(AutoScroll, 0)  ; Stop the timer
+        mButtonPressed := true  ; Ensure context menu is suppressed on release
+        CloseContextMenu()  ; Close any open context menu
+        KeyWait("RButton")  ; Wait for RButton to be released to prevent re-trigger
+        return
+    }
     if GetKeyState("LButton", "P")  ; If LButton is held
     {
         ; Add a small delay to stabilize key detection
         Sleep(10)
         rButtonPressCount += 1  ; Increment press counter
         ; Debug log (remove after testing)
-        FileAppend("RButton press detected. Count: " rButtonPressCount " Time: " A_TickCount "`n", "C:\Users\jeffr\Documents\MouseHotkeysLog.txt")
+        FileAppend("RButton press detected. Count: " rButtonPressCount " Time: " A_TickCount "`n", logFile)
         
         if (rButtonPressCount = 1)
         {
@@ -267,7 +282,7 @@ RButton::
             lastRButtonTime := A_TickCount
             rButtonPressTime := A_TickCount
             KeyWait("RButton")  ; Wait for RButton to be released
-            FileAppend("Copy executed. Count: " rButtonPressCount "`n", "C:\Users\jeffr\Documents\MouseHotkeysLog.txt")
+            FileAppend("Copy executed. Count: " rButtonPressCount "`n", logFile)
             return
         }
         else if (rButtonPressCount >= 2)
@@ -278,7 +293,7 @@ RButton::
             lastRButtonTime := 0  ; Reset the timer
             rButtonPressTime := 0  ; Reset the first press time
             KeyWait("RButton")  ; Wait for RButton to be released
-            FileAppend("Select All executed. Count: " rButtonPressCount "`n", "C:\Users\jeffr\Documents\MouseHotkeysLog.txt")
+            FileAppend("Select All executed. Count: " rButtonPressCount "`n", logFile)
             return
         }
     }
@@ -289,27 +304,17 @@ RButton::
     return
 }
 
-; Right mouse button release: Handle context menu
+; Right mouse button release: Handle context menu (do not stop auto-scroll)
 RButton Up::
 {
-    global autoScrollActive, mButtonPressed
-    if (autoScrollActive)  ; Stop auto-scroll on right-click release
-    {
-        autoScrollActive := false
-        SetTimer(AutoScroll, 0)  ; Stop the timer
-        mButtonPressed := true  ; Ensure context menu is suppressed
-        CloseContextMenu()  ; Force-close any open context menu
-        return  ; Suppress context menu
-    }
-    ; Only simulate right-click if no MButton or scroll events occurred
+    global mButtonPressed
+    ; Do NOT stop auto-scroll here to allow it to continue
+    ; Only simulate right-click if no MButton, scroll events, or auto-scroll stop occurred
     if (!mButtonPressed)
     {
         Send("{RButton}")  ; Simulate right-click to open context menu
     }
-    else
-    {
-        CloseContextMenu()  ; Force-close any open context menu if mButtonPressed is true
-    }
+    CloseContextMenu()  ; Always close any lingering context menu
     mButtonPressed := false  ; Reset state
     return
 }
@@ -324,6 +329,7 @@ LButton::
         SetTimer(AutoScroll, 0)  ; Stop the timer
         Send("{LButton up}")  ; Ensure LButton is released
         CloseContextMenu()  ; Force-close any open context menu
+        FileAppend("LButton pressed during auto-scroll. Reset rButtonPressCount to 0``n", logFile)
         return
     }
     if GetKeyState("RButton", "P")  ; If RButton is held
@@ -336,29 +342,20 @@ LButton::
     mButtonPressed := false
     scrollCount := 0
     rButtonPressCount := 0  ; Reset RButton press counter
-    FileAppend("LButton pressed. Reset rButtonPressCount to 0.`n", "C:\Users\jeffr\Documents\MouseHotkeysLog.txt")
+    FileAppend("LButton pressed. Reset rButtonPressCount to 0``n", logFile)
     Send("{LButton down}")  ; Normal left-click down to allow dragging
     return
 }
 
-; Left mouse button release: Handle auto-scroll stop or normal click
+; Left mouse button release: Handle normal click (do not stop auto-scroll)
 LButton Up::
 {
     global autoScrollActive, mButtonPressed, rButtonPressCount
-    if (autoScrollActive)  ; Stop auto-scroll on left-click release
-    {
-        autoScrollActive := false
-        SetTimer(AutoScroll, 0)  ; Stop the timer
-        rButtonPressCount := 0  ; Reset RButton press counter
-        Send("{LButton up}")  ; Ensure LButton is released
-        CloseContextMenu()  ; Force-close any open context menu
-        FileAppend("LButton released during auto-scroll. Reset rButtonPressCount to 0.`n", "C:\Users\jeffr\Documents\MouseHotkeysLog.txt")
-        return
-    }
+    ; Do NOT stop auto-scroll here to allow it to continue
     ; Always send LButton up to ensure release
     Send("{LButton up}")  ; Normal left-click up to complete drag
     rButtonPressCount := 0  ; Reset RButton press counter
     CloseContextMenu()  ; Force-close any open context menu
-    FileAppend("LButton released. Reset rButtonPressCount to 0.`n", "C:\Users\jeffr\Documents\MouseHotkeysLog.txt")
+    FileAppend("LButton released. Reset rButtonPressCount to 0``n", logFile)
     return
 }

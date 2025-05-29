@@ -112,10 +112,19 @@ MButton::
     return
 }
 
-; WheelUp: Handle auto-scroll when LButton or RButton is held, preserve modifier+Wheel behaviors
+; WheelUp: Handle auto-scroll when LButton or RButton is held, stop in Mode 2 when buttons released, preserve modifier+Wheel behaviors
 *WheelUp::
 {
-    global autoScrollActive, autoScrollDirection, autoScrollInterval, scrollCount, mButtonPressed, lastWheelDirection
+    global autoScrollActive, autoScrollDirection, autoScrollInterval, scrollCount, mButtonPressed, lastWheelDirection, autoScrollMode
+    if (autoScrollActive && autoScrollMode = 2 && !GetKeyState("LButton", "P") && !GetKeyState("RButton", "P"))  ; Stop auto-scroll in Mode 2 if buttons released
+    {
+        autoScrollActive := false
+        SetTimer(AutoScroll, 0)  ; Stop the timer
+        FileAppend("WheelUp stopped auto-scroll in Mode 2 (buttons released).`n", logFile)
+        CloseContextMenu()  ; Close any open context menu
+        Send("{WheelUp}")  ; Send normal scroll up
+        return
+    }
     if (GetKeyState("LButton", "P") || GetKeyState("RButton", "P"))  ; Check if LButton or RButton is held
     {
         mButtonPressed := true  ; Suppress context menu or normal click behavior
@@ -183,10 +192,19 @@ MButton::
     return
 }
 
-; WheelDown: Handle auto-scroll when LButton or RButton is held, preserve modifier+Wheel behaviors
+; WheelDown: Handle auto-scroll when LButton or RButton is held, stop in Mode 2 when buttons released, preserve modifier+Wheel behaviors
 *WheelDown::
 {
-    global autoScrollActive, autoScrollDirection, autoScrollInterval, scrollCount, mButtonPressed, lastWheelDirection
+    global autoScrollActive, autoScrollDirection, autoScrollInterval, scrollCount, mButtonPressed, lastWheelDirection, autoScrollMode
+    if (autoScrollActive && autoScrollMode = 2 && !GetKeyState("LButton", "P") && !GetKeyState("RButton", "P"))  ; Stop auto-scroll in Mode 2 if buttons released
+    {
+        autoScrollActive := false
+        SetTimer(AutoScroll, 0)  ; Stop the timer
+        FileAppend("WheelDown stopped auto-scroll in Mode 2 (buttons released).`n", logFile)
+        CloseContextMenu()  ; Close any open context menu
+        Send("{WheelDown}")  ; Send normal scroll down
+        return
+    }
     if (GetKeyState("LButton", "P") || GetKeyState("RButton", "P"))  ; Check if LButton or RButton is held
     {
         mButtonPressed := true  ; Suppress context menu or normal click behavior

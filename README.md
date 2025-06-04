@@ -6,7 +6,11 @@ https://www.autohotkey.com/ https://ditto-cp.sourceforge.io/
 
 Copy: Right click while holding left
 
-Select all: Right 2 times while holding left
+Select all: Right click while holding Xbutton1 (back side button).
+
+Save: Left click while holding XButton2 (front side button).
+
+Undo: Right click while holding XButton2 (front side button).
 
 Paste: Wheel click
 
@@ -14,7 +18,11 @@ Enter: Left click while holding right.
 
 Up and down: 2 side buttons while holding right.
 
-Auto scroll: Scroll 1 to 3 while holding right (or left if selecting text) 100 50 1ms, press any key to stop.
+Fail Safe: Ctrl + Shift + Escape.
+
+Auto scroll: Scroll 1 to 5 times while holding XButton1 or right click (or left if selecting text) 150 100 50 25 1ms, press any button to stop.
+
+Scolling while active and button released will increase or deacrease till get to 0 then stop if in mode 2.
 
 Auto Scoll Mode: Wheel click while holding right. Mode 1 stops when release button, mode 2 doesn't, any button to stop.
 

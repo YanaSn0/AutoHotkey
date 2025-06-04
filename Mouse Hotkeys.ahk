@@ -1,407 +1,700 @@
-#SingleInstance Force  ; Ensures only one instance of the script is running
+#SingleInstance Force
 
-; Initialize global variables at the top level
+; Initialize global variables
 lastRButtonTime := 0
-doubleClickInterval := 300  ; Kept for reference, not used for select all
-rButtonPressTime := 0  ; Track the time of the first RButton press
-mButtonPressed := false  ; Track if MButton or scroll was used during LButton or RButton hold
-autoScrollActive := false  ; Track if auto-scroll is active
-autoScrollDirection := ""  ; "up" or "down"
-autoScrollInterval := 130  ; Initial interval in ms (speed 1: 130ms)
-scrollCount := 0  ; Count scrolls during LButton or RButton hold
-lastWheelDirection := ""  ; Track the last wheel direction
-rButtonPressCount := 0  ; Track number of RButton presses while LButton is held
-autoScrollMode := 1  ; Default to Mode 1 (auto-scroll stops on key release)
+doubleClickInterval := 300
+rButtonPressTime := 0
+mButtonPressed := false
+autoScrollActive := false
+scrollSpeed := 0 ; Speed from -5 (fastest down) to 5 (fastest up), 0 is stopped
+scrollCount := 0
+oppositeScrollCount := 0 ; Track opposite scroll events
+lastWheelDirection := ""
+rButtonPressCount := 0
+autoScrollMode := 1
+selectAllTriggered := false
+copyTriggered := false
+undoTriggered := false
+saveTriggered := false
+recentAutoScroll := false
+xButton1OtherButtons := false ; Track if other buttons used with XButton1
+xButton2OtherButtons := false ; Track if other buttons used with XButton2
+rButtonOtherButtons := false ; Track if other buttons used with RButton
+lastContextMenuCloseTime := 0
+lastSpeedChangeTime := 0
+lastAutoScrollTime := 0
+lastSaveTime := 0 ; Track last save
 
-; Use a generic path in the temp directory for the log file
 logFile := A_Temp "\MouseHotkeysLog.txt"
 
-; Fail-safe hotkey to exit the script (Ctrl+Shift+Esc)
 ^+Esc::
 {
-    MsgBox("Exiting script to prevent lockout.")
-    Send("{LButton up}")  ; Ensure LButton is released before exiting
-    Send("{Esc}")  ; Close any open context menu
+    MsgBox "Exiting script to prevent lockout."
+    Send("{LButton up}")
+    Send("{Esc}")
     ExitApp
 }
 
-; Helper function to close context menu if open
-CloseContextMenu()
+CloseClipboardInterfaces()
 {
-    if WinExist("ahk_class #32768")  ; Context menu window class
+    global lastContextMenuCloseTime
+    closed := false
+    ; Close Ditto (default class, adjust if custom)
+    if WinExist("ahk_class ThunderRT6FormDC ahk_exe Ditto.exe")
     {
-        Send("{Esc}")  ; Send Esc to close the context menu
-        Sleep(50)  ; Small delay to ensure it closes
+        Send("{Esc}")
+        Sleep(50)
+        closed := true
     }
+    ; Close context menu
+    if WinExist("ahk_class #32768")
+    {
+        Send("{Esc}")
+        Sleep(50)
+        closed := true
+    }
+    if (closed)
+    {
+        lastContextMenuCloseTime := A_TickCount
+        FileAppend("Closed Ditto/context menu at " A_TickCount ".\n", logFile)
+        return true
+    }
+    return false
 }
 
-; XButton1: Stop auto-scroll and handle Ditto or Down arrow
 XButton1::
 {
-    global autoScrollActive, mButtonPressed
-    if (autoScrollActive)  ; Stop auto-scroll on any button press
+    global mButtonPressed, selectAllTriggered, copyTriggered, recentAutoScroll, lastAutoScrollTime, xButton1OtherButtons, autoScrollActive, scrollSpeed
+    if (autoScrollActive)
     {
         autoScrollActive := false
-        SetTimer(AutoScroll, 0)  ; Stop the timer
-        CloseContextMenu()  ; Close any open context menu
+        scrollSpeed := 0
+        SetTimer(AutoScroll, 0)
+        mButtonPressed := true
+        recentAutoScroll := true
+        lastAutoScrollTime := A_TickCount
+        CloseClipboardInterfaces()
+        FileAppend("XButton1 pressed: Auto-scroll stopped. autoScrollActive=" autoScrollActive ", scrollSpeed=" scrollSpeed ".\n", logFile)
         return
     }
-    if GetKeyState("RButton", "P")  ; If RButton is held
-    {
-        Send("{Down}")  ; Send Down arrow
-        mButtonPressed := true  ; Suppress context menu
-        return
-    }
-    Send("^``")  ; Ctrl + ` (backtick) to open Ditto
+    mButtonPressed := true
+    selectAllTriggered := false
+    copyTriggered := false
+    xButton1OtherButtons := false
+    autoScrollActive := false
+    scrollSpeed := 0
+    FileAppend("XButton1 pressed: mButtonPressed=" mButtonPressed ", autoScrollActive=" autoScrollActive ", xButton1OtherButtons=" xButton1OtherButtons ".\n", logFile)
     return
 }
 
-; XButton2: Stop auto-scroll and handle Win+V or Up arrow
+XButton1 Up::
+{
+    global mButtonPressed, selectAllTriggered, copyTriggered, recentAutoScroll, lastAutoScrollTime, xButton1OtherButtons, autoScrollActive
+    if GetKeyState("RButton", "P")
+    {
+        Send("{Down}")
+        mButtonPressed := true
+        FileAppend("XButton1 released: Sent Down with RButton held.\n", logFile)
+        CloseClipboardInterfaces()
+        return
+    }
+    currentTime := A_TickCount
+    if (!selectAllTriggered && !copyTriggered && !recentAutoScroll && !xButton1OtherButtons && (currentTime - lastAutoScrollTime > 1000))
+    {
+        Send("^``")
+        FileAppend("XButton1 released: Sent Ctrl+` (Ditto).\n", logFile)
+        CloseClipboardInterfaces()
+    }
+    else
+    {
+        FileAppend("XButton1 released: Skipped Ditto due to " (selectAllTriggered ? "select all" : copyTriggered ? "copy" : xButton1OtherButtons ? "other buttons" : "recent auto-scroll") ", autoScrollTime=" (currentTime - lastAutoScrollTime) ".\n", logFile)
+        CloseClipboardInterfaces()
+    }
+    mButtonPressed := false
+    selectAllTriggered := false
+    copyTriggered := false
+    xButton1OtherButtons := false
+    recentAutoScroll := false
+    if (autoScrollActive && autoScrollMode = 1)
+    {
+        autoScrollActive := false
+        scrollSpeed := 0
+        SetTimer(AutoScroll, 0)
+        FileAppend("XButton1 released: Auto-scroll stopped in Mode 1.\n", logFile)
+    }
+    FileAppend("XButton1 Up: mButtonPressed=" mButtonPressed ", autoScrollActive=" autoScrollActive ".\n", logFile)
+    return
+}
+
 XButton2::
 {
-    global autoScrollActive, mButtonPressed
-    if (autoScrollActive)  ; Stop auto-scroll on any button press
+    global autoScrollActive, mButtonPressed, undoTriggered, saveTriggered, recentAutoScroll, lastAutoScrollTime, xButton2OtherButtons
+    if (autoScrollActive)
     {
         autoScrollActive := false
-        SetTimer(AutoScroll, 0)  ; Stop the timer
-        CloseContextMenu()  ; Close any open context menu
+        scrollSpeed := 0
+        SetTimer(AutoScroll, 0)
+        mButtonPressed := true
+        recentAutoScroll := true
+        lastAutoScrollTime := A_TickCount
+        CloseClipboardInterfaces()
+        FileAppend("XButton2 pressed: Auto-scroll stopped.\n", logFile)
         return
     }
-    if GetKeyState("RButton", "P")  ; If RButton is held
-    {
-        Send("{Up}")  ; Send Up arrow
-        mButtonPressed := true  ; Suppress context menu
-        return
-    }
-    Send("{LWin down}")
-    Send("v")
-    Send("{LWin up}")
+    mButtonPressed := true
+    undoTriggered := false
+    saveTriggered := false
+    xButton2OtherButtons := false
+    FileAppend("XButton2 pressed: mButtonPressed=" mButtonPressed ", saveTriggered=" saveTriggered ", xButton2OtherButtons=" xButton2OtherButtons ".\n", logFile)
     return
 }
 
-; Middle mouse button: Toggle auto-scroll mode or stop auto-scroll and paste
-MButton::
+XButton2 Up::
 {
-    global autoScrollActive, autoScrollMode, mButtonPressed
-    if (autoScrollActive)  ; Stop auto-scroll on any button press
+    global mButtonPressed, undoTriggered, saveTriggered, lastSaveTime, xButton2OtherButtons, autoScrollActive
+    if GetKeyState("RButton", "P")
     {
-        autoScrollActive := false
-        SetTimer(AutoScroll, 0)  ; Stop the timer
-        CloseContextMenu()  ; Close any open context menu
-        FileAppend("MButton stopped auto-scroll. Mode: " autoScrollMode "`n", logFile)
+        Send("{Up}")
+        mButtonPressed := true
+        FileAppend("XButton2 released: Sent Up with RButton held.\n", logFile)
+        CloseClipboardInterfaces()
         return
     }
-    if GetKeyState("RButton", "P")  ; If RButton is held
+    currentTime := A_TickCount
+    if (!undoTriggered && !saveTriggered && !xButton2OtherButtons && (currentTime - lastSaveTime > 1000))
     {
-        ; Toggle between Mode 1 and Mode 2
+        Send("{LWin down}")
+        Send("v")
+        Send("{LWin up}")
+        FileAppend("XButton2 released: Sent Win+V at " currentTime ".\n", logFile)
+        CloseClipboardInterfaces()
+    }
+    else
+    {
+        FileAppend("XButton2 released: Skipped Win+V due to undoTriggered=" undoTriggered ", saveTriggered=" saveTriggered ", xButton2OtherButtons=" xButton2OtherButtons ", lastSaveTime=" lastSaveTime ".\n", logFile)
+        CloseClipboardInterfaces()
+    }
+    mButtonPressed := false
+    undoTriggered := false
+    saveTriggered := false
+    xButton2OtherButtons := false
+    if (autoScrollActive && autoScrollMode = 1)
+    {
+        autoScrollActive := false
+        scrollSpeed := 0
+        SetTimer(AutoScroll, 0)
+        FileAppend("XButton2 released: Auto-scroll stopped in Mode 1.\n", logFile)
+    }
+    FileAppend("XButton2 Up: mButtonPressed=" mButtonPressed ", saveTriggered=" saveTriggered ".\n", logFile)
+    return
+}
+
+MButton::
+{
+    global autoScrollActive, autoScrollMode, mButtonPressed, recentAutoScroll, lastAutoScrollTime, xButton1OtherButtons, xButton2OtherButtons, rButtonOtherButtons
+    if (autoScrollActive)
+    {
+        autoScrollActive := false
+        scrollSpeed := 0
+        SetTimer(AutoScroll, 0)
+        mButtonPressed := true
+        recentAutoScroll := true
+        lastAutoScrollTime := A_TickCount
+        CloseClipboardInterfaces()
+        FileAppend("MButton stopped auto-scroll. Mode: " autoScrollMode "\n", logFile)
+        return
+    }
+    if GetKeyState("RButton", "P")
+    {
         if (autoScrollMode = 1)
         {
             autoScrollMode := 2
-            FileAppend("Switched to Mode 2: Auto-scroll continues until explicitly stopped.`n", logFile)
+            FileAppend("Switched to Mode 2: Auto-scroll continues until explicitly stopped.\n", logFile)
         }
         else
         {
             autoScrollMode := 1
-            FileAppend("Switched to Mode 1: Auto-scroll stops on key release.`n", logFile)
+            FileAppend("Switched to Mode 1: Auto-scroll stops on key release.\n", logFile)
         }
-        mButtonPressed := true  ; Suppress context menu
+        mButtonPressed := true
+        xButton1OtherButtons := true
+        xButton2OtherButtons := true
+        CloseClipboardInterfaces()
         return
     }
-    Send("^v")  ; Ctrl + V (paste)
-    Sleep(50)  ; Small delay to ensure the paste completes properly
+    if GetKeyState("XButton1", "P")
+        xButton1OtherButtons := true
+    if GetKeyState("XButton2", "P")
+        xButton2OtherButtons := true
+    if GetKeyState("LButton", "P")
+        rButtonOtherButtons := true
+    Send("^v")
+    Sleep(50)
+    CloseClipboardInterfaces()
+    FileAppend("MButton pressed: Sent Ctrl+V.\n", logFile)
     return
 }
 
-; WheelUp: Handle auto-scroll when LButton or RButton is held, stop in Mode 2 when buttons released, preserve modifier+Wheel behaviors
 *WheelUp::
 {
-    global autoScrollActive, autoScrollDirection, autoScrollInterval, scrollCount, mButtonPressed, lastWheelDirection, autoScrollMode
-    if (autoScrollActive && autoScrollMode = 2 && !GetKeyState("LButton", "P") && !GetKeyState("RButton", "P"))  ; Stop auto-scroll in Mode 2 if buttons released
+    global autoScrollActive, scrollSpeed, scrollCount, oppositeScrollCount, mButtonPressed, lastWheelDirection, autoScrollMode, recentAutoScroll, lastSpeedChangeTime, lastAutoScrollTime, xButton1OtherButtons, xButton2OtherButtons, rButtonOtherButtons
+    currentTime := A_TickCount
+    if GetKeyState("XButton1", "P")
+        xButton1OtherButtons := true
+    if GetKeyState("XButton2", "P")
+        xButton2OtherButtons := true
+    if GetKeyState("RButton", "P")
+        rButtonOtherButtons := true
+    if GetKeyState("LButton", "P")
+        rButtonOtherButtons := true
+    if (autoScrollActive && autoScrollMode = 2 && !GetKeyState("LButton", "P") && !GetKeyState("RButton", "P") && !GetKeyState("XButton1", "P") && !GetKeyState("XButton2", "P"))
     {
-        autoScrollActive := false
-        SetTimer(AutoScroll, 0)  ; Stop the timer
-        FileAppend("WheelUp stopped auto-scroll in Mode 2 (buttons released).`n", logFile)
-        CloseContextMenu()  ; Close any open context menu
-        Send("{WheelUp}")  ; Send normal scroll up
-        return
-    }
-    if (GetKeyState("LButton", "P") || GetKeyState("RButton", "P"))  ; Check if LButton or RButton is held
-    {
-        mButtonPressed := true  ; Suppress context menu or normal click behavior
-        scrollCount += 1
-
-        ; Track wheel direction
-        lastWheelDirection := "up"
-
-        if (!autoScrollActive)
+        if (scrollSpeed >= 0)
         {
-            ; Start auto-scroll up (Speed 1: 130ms)
-            autoScrollActive := true
-            autoScrollDirection := "up"
-            autoScrollInterval := 130  ; Speed 1 (ensure it's set)
-            scrollCount := 1
-            lastWheelDirection := "up"
-            SetTimer(AutoScroll, autoScrollInterval)  ; Start timer
+            if (currentTime - lastSpeedChangeTime > 100 && scrollSpeed < 5)
+            {
+                scrollSpeed += 1
+                SetTimer(AutoScroll, GetScrollInterval(scrollSpeed))
+                lastSpeedChangeTime := currentTime
+                lastAutoScrollTime := currentTime
+                FileAppend("WheelUp: Auto-scroll speed increased in Mode 2 (no buttons): Speed " scrollSpeed " (up) at " currentTime ".\n", logFile)
+            }
         }
         else
         {
-            ; Adjust speed based on direction
-            if (autoScrollDirection = "up")
+            if (currentTime - lastSpeedChangeTime > 100)
             {
-                ; Increase speed (decrease interval)
-                if (autoScrollInterval = 130)
-                    autoScrollInterval := 50  ; Speed 2
-                else if (autoScrollInterval = 50)
-                    autoScrollInterval := 1  ; Speed 3 (1ms)
-                SetTimer(AutoScroll, autoScrollInterval)  ; Update timer with new interval
+                oppositeScrollCount += 1
+                scrollSpeed += 1
+                if (scrollSpeed = 0)
+                {
+                    autoScrollActive := false
+                    SetTimer(AutoScroll, 0)
+                    FileAppend("WheelUp: Auto-scroll stopped in Mode 2 (speed 0) at " currentTime ".\n", logFile)
+                }
+                else
+                {
+                    SetTimer(AutoScroll, GetScrollInterval(scrollSpeed))
+                    lastSpeedChangeTime := currentTime
+                    lastAutoScrollTime := currentTime
+                    FileAppend("WheelUp: Auto-scroll speed decreased in Mode 2 (no buttons): Speed " scrollSpeed " (up), Opposite count " oppositeScrollCount " at " currentTime ".\n", logFile)
+                }
+            }
+        }
+        CloseClipboardInterfaces()
+        return
+    }
+    if (GetKeyState("LButton", "P") || GetKeyState("RButton", "P") || GetKeyState("XButton1", "P") || GetKeyState("XButton2", "P"))
+    {
+        mButtonPressed := true
+        scrollCount += 1
+        lastWheelDirection := "up"
+        if (!autoScrollActive)
+        {
+            CloseClipboardInterfaces()
+            autoScrollActive := true
+            scrollSpeed := 1
+            scrollCount := 1
+            oppositeScrollCount := 0
+            lastSpeedChangeTime := currentTime
+            lastAutoScrollTime := currentTime
+            SetTimer(AutoScroll, GetScrollInterval(scrollSpeed))
+            FileAppend("WheelUp: Auto-scroll started: Speed " scrollSpeed " (up) at " currentTime ", xButton1OtherButtons=" xButton1OtherButtons ", xButton2OtherButtons=" xButton2OtherButtons ".\n", logFile)
+        }
+        else
+        {
+            if (scrollSpeed >= 0)
+            {
+                if (currentTime - lastSpeedChangeTime > 100 && scrollSpeed < 5)
+                {
+                    scrollSpeed += 1
+                    SetTimer(AutoScroll, GetScrollInterval(scrollSpeed))
+                    lastSpeedChangeTime := currentTime
+                    lastAutoScrollTime := currentTime
+                    FileAppend("WheelUp: Auto-scroll speed increased: Speed " scrollSpeed " (up) at " currentTime ".\n", logFile)
+                }
             }
             else
             {
-                ; Stop auto-scroll when scrolling in the opposite direction
-                autoScrollActive := false
-                SetTimer(AutoScroll, 0)  ; Stop the timer
-                Sleep(50)  ; Small delay to ensure timer stops
-                return  ; Do not restart in the new direction
+                if (currentTime - lastSpeedChangeTime > 100)
+                {
+                    oppositeScrollCount += 1
+                    scrollSpeed += 1
+                    if (scrollSpeed = 0)
+                    {
+                        autoScrollActive := false
+                        SetTimer(AutoScroll, 0)
+                        FileAppend("WheelUp: Auto-scroll stopped: Speed 0 at " currentTime ".\n", logFile)
+                    }
+                    else
+                    {
+                        SetTimer(AutoScroll, GetScrollInterval(scrollSpeed))
+                        lastSpeedChangeTime := currentTime
+                        lastAutoScrollTime := currentTime
+                        FileAppend("WheelUp: Auto-scroll speed decreased: Speed " scrollSpeed " (up), Opposite count " oppositeScrollCount " at " currentTime ".\n", logFile)
+                    }
+                }
             }
         }
+        CloseClipboardInterfaces()
         return
     }
-    ; Allow normal scrolling if auto-scroll is not active
-    if GetKeyState("Ctrl", "P")  ; Check if Ctrl is held
+    if GetKeyState("Ctrl", "P")
     {
         Send("{Ctrl down}")
-        Send("{WheelUp}")  ; Send Ctrl + WheelUp for zooming
+        Send("{WheelUp}")
         Send("{Ctrl up}")
         return
     }
-    else if GetKeyState("Shift", "P")  ; Check if Shift is held
+    else if GetKeyState("Shift", "P")
     {
         Send("{Shift down}")
-        Send("{WheelUp}")  ; Send Shift + WheelUp for horizontal scrolling
+        Send("{WheelUp}")
         Send("{Shift up}")
         return
     }
-    else if GetKeyState("Alt", "P")  ; Check if Alt is held
+    else if GetKeyState("Alt", "P")
     {
         Send("{Alt down}")
-        Send("{WheelUp}")  ; Send Alt + WheelUp for app-specific actions
+        Send("{WheelUp}")
         Send("{Alt up}")
         return
     }
-    Send("{WheelUp}")  ; Normal scroll up
+    Send("{WheelUp}")
     return
 }
 
-; WheelDown: Handle auto-scroll when LButton or RButton is held, stop in Mode 2 when buttons released, preserve modifier+Wheel behaviors
 *WheelDown::
 {
-    global autoScrollActive, autoScrollDirection, autoScrollInterval, scrollCount, mButtonPressed, lastWheelDirection, autoScrollMode
-    if (autoScrollActive && autoScrollMode = 2 && !GetKeyState("LButton", "P") && !GetKeyState("RButton", "P"))  ; Stop auto-scroll in Mode 2 if buttons released
+    global autoScrollActive, scrollSpeed, scrollCount, oppositeScrollCount, mButtonPressed, lastWheelDirection, autoScrollMode, recentAutoScroll, lastSpeedChangeTime, lastAutoScrollTime, xButton1OtherButtons, xButton2OtherButtons, rButtonOtherButtons
+    currentTime := A_TickCount
+    if GetKeyState("XButton1", "P")
+        xButton1OtherButtons := true
+    if GetKeyState("XButton2", "P")
+        xButton2OtherButtons := true
+    if GetKeyState("RButton", "P")
+        rButtonOtherButtons := true
+    if GetKeyState("LButton", "P")
+        rButtonOtherButtons := true
+    if (autoScrollActive && autoScrollMode = 2 && !GetKeyState("LButton", "P") && !GetKeyState("RButton", "P") && !GetKeyState("XButton1", "P") && !GetKeyState("XButton2", "P"))
     {
-        autoScrollActive := false
-        SetTimer(AutoScroll, 0)  ; Stop the timer
-        FileAppend("WheelDown stopped auto-scroll in Mode 2 (buttons released).`n", logFile)
-        CloseContextMenu()  ; Close any open context menu
-        Send("{WheelDown}")  ; Send normal scroll down
-        return
-    }
-    if (GetKeyState("LButton", "P") || GetKeyState("RButton", "P"))  ; Check if LButton or RButton is held
-    {
-        mButtonPressed := true  ; Suppress context menu or normal click behavior
-        scrollCount += 1
-
-        ; Track wheel direction
-        lastWheelDirection := "down"
-
-        if (!autoScrollActive)
+        if (scrollSpeed <= 0)
         {
-            ; Start auto-scroll down (Speed 1: 130ms)
-            autoScrollActive := true
-            autoScrollDirection := "down"
-            autoScrollInterval := 130  ; Speed 1 (ensure it's set)
-            scrollCount := 1
-            lastWheelDirection := "down"
-            SetTimer(AutoScroll, autoScrollInterval)  ; Start timer
+            if (currentTime - lastSpeedChangeTime > 100 && scrollSpeed > -5)
+            {
+                scrollSpeed -= 1
+                SetTimer(AutoScroll, GetScrollInterval(scrollSpeed))
+                lastSpeedChangeTime := currentTime
+                lastAutoScrollTime := currentTime
+                FileAppend("WheelDown: Auto-scroll speed increased in Mode 2 (no buttons): Speed " scrollSpeed " (down) at " currentTime ".\n", logFile)
+            }
         }
         else
         {
-            ; Adjust speed based on direction
-            if (autoScrollDirection = "down")
+            if (currentTime - lastSpeedChangeTime > 100)
             {
-                ; Increase speed (decrease interval)
-                if (autoScrollInterval = 130)
-                    autoScrollInterval := 50  ; Speed 2
-                else if (autoScrollInterval = 50)
-                    autoScrollInterval := 1  ; Speed 3 (1ms)
-                SetTimer(AutoScroll, autoScrollInterval)  ; Update timer with new interval
+                oppositeScrollCount += 1
+                scrollSpeed -= 1
+                if (scrollSpeed = 0)
+                {
+                    autoScrollActive := false
+                    SetTimer(AutoScroll, 0)
+                    FileAppend("WheelDown: Auto-scroll stopped in Mode 2 (speed 0) at " currentTime ".\n", logFile)
+                }
+                else
+                {
+                    SetTimer(AutoScroll, GetScrollInterval(scrollSpeed))
+                    lastSpeedChangeTime := currentTime
+                    lastAutoScrollTime := currentTime
+                    FileAppend("WheelDown: Auto-scroll speed decreased in Mode 2 (no buttons): Speed " scrollSpeed " (down), Opposite count " oppositeScrollCount " at " currentTime ".\n", logFile)
+                }
+            }
+        }
+        CloseClipboardInterfaces()
+        return
+    }
+    if (GetKeyState("LButton", "P") || GetKeyState("RButton", "P") || GetKeyState("XButton1", "P") || GetKeyState("XButton2", "P"))
+    {
+        mButtonPressed := true
+        scrollCount += 1
+        lastWheelDirection := "down"
+        if (!autoScrollActive)
+        {
+            CloseClipboardInterfaces()
+            autoScrollActive := true
+            scrollSpeed := -1
+            scrollCount := 1
+            oppositeScrollCount := 0
+            lastSpeedChangeTime := currentTime
+            lastAutoScrollTime := currentTime
+            SetTimer(AutoScroll, GetScrollInterval(scrollSpeed))
+            FileAppend("WheelDown: Auto-scroll started: Speed " scrollSpeed " (down) at " currentTime ", xButton1OtherButtons=" xButton1OtherButtons ", xButton2OtherButtons=" xButton2OtherButtons ".\n", logFile)
+        }
+        else
+        {
+            if (scrollSpeed <= 0)
+            {
+                if (currentTime - lastSpeedChangeTime > 100 && scrollSpeed > -5)
+                {
+                    scrollSpeed -= 1
+                    SetTimer(AutoScroll, GetScrollInterval(scrollSpeed))
+                    lastSpeedChangeTime := currentTime
+                    lastAutoScrollTime := currentTime
+                    FileAppend("WheelDown: Auto-scroll speed increased: Speed " scrollSpeed " (down) at " currentTime ".\n", logFile)
+                }
             }
             else
             {
-                ; Stop auto-scroll when scrolling in the opposite direction
-                autoScrollActive := false
-                SetTimer(AutoScroll, 0)  ; Stop the timer
-                Sleep(50)  ; Small delay to ensure timer stops
-                return  ; Do not restart in the new direction
+                if (currentTime - lastSpeedChangeTime > 100)
+                {
+                    oppositeScrollCount += 1
+                    scrollSpeed -= 1
+                    if (scrollSpeed = 0)
+                    {
+                        autoScrollActive := false
+                        SetTimer(AutoScroll, 0)
+                        FileAppend("WheelDown: Auto-scroll stopped: Speed 0 at " currentTime ".\n", logFile)
+                    }
+                    else
+                    {
+                        SetTimer(AutoScroll, GetScrollInterval(scrollSpeed))
+                        lastSpeedChangeTime := currentTime
+                        lastAutoScrollTime := currentTime
+                        FileAppend("WheelDown: Auto-scroll speed decreased: Speed " scrollSpeed " (down), Opposite count " oppositeScrollCount " at " currentTime ".\n", logFile)
+                    }
+                }
             }
         }
+        CloseClipboardInterfaces()
         return
     }
-    ; Allow normal scrolling if auto-scroll is not active
-    if GetKeyState("Ctrl", "P")  ; Check if Ctrl is held
+    if GetKeyState("Ctrl", "P")
     {
         Send("{Ctrl down}")
-        Send("{WheelDown}")  ; Send Ctrl + WheelDown for zooming
+        Send("{WheelDown}")
         Send("{Ctrl up}")
         return
     }
-    else if GetKeyState("Shift", "P")  ; Check if Shift is held
+    else if GetKeyState("Shift", "P")
     {
         Send("{Shift down}")
-        Send("{WheelDown}")  ; Send Shift + WheelDown for horizontal scrolling
+        Send("{WheelDown}")
         Send("{Shift up}")
         return
     }
-    else if GetKeyState("Alt", "P")  ; Check if Alt is held
+    else if GetKeyState("Alt", "P")
     {
         Send("{Alt down}")
-        Send("{WheelDown}")  ; Send Alt + WheelDown for app-specific actions
+        Send("{WheelDown}")
         Send("{Alt up}")
         return
     }
-    Send("{WheelDown}")  ; Normal scroll down
+    Send("{WheelDown}")
     return
 }
 
-; Auto-scroll timer function
+GetScrollInterval(speed)
+{
+    if (speed = 0)
+        return 0
+    else if (speed = 5 || speed = -5)
+        return 1
+    else if (speed = 4 || speed = -4)
+        return 25
+    else if (speed = 3 || speed = -3)
+        return 50
+    else if (speed = 2 || speed = -2)
+        return 100
+    else if (speed = 1 || speed = -1)
+        return 150
+    return 150
+}
+
 AutoScroll()
 {
-    global autoScrollActive, autoScrollDirection
-    if (!autoScrollActive)
+    global autoScrollActive, scrollSpeed, lastAutoScrollTime
+    if (!autoScrollActive || scrollSpeed = 0)
     {
-        SetTimer(AutoScroll, 0)  ; Stop the timer
+        SetTimer(AutoScroll, 0)
+        autoScrollActive := false
         return
     }
-    ; Send scroll event based on direction
-    if (autoScrollDirection = "up")
+    if (scrollSpeed > 0)
         Send("{WheelUp}")
-    else if (autoScrollDirection = "down")
+    else if (scrollSpeed < 0)
         Send("{WheelDown}")
+    lastAutoScrollTime := A_TickCount
     return
 }
 
-; Right mouse button press: Handle LButton-held logic and stop auto-scroll
 RButton::
 {
-    global lastRButtonTime, rButtonPressTime, mButtonPressed, scrollCount, rButtonPressCount, autoScrollActive
-    if (autoScrollActive)  ; Stop auto-scroll on any button press
+    global lastRButtonTime, mButtonPressed, scrollCount, autoScrollActive, selectAllTriggered, undoTriggered, saveTriggered, recentAutoScroll, lastAutoScrollTime, lastSaveTime, copyTriggered, xButton1OtherButtons, xButton2OtherButtons
+    if (autoScrollActive)
     {
         autoScrollActive := false
-        SetTimer(AutoScroll, 0)  ; Stop the timer
-        mButtonPressed := true  ; Ensure context menu is suppressed on release
-        CloseContextMenu()  ; Close any open context menu
-        KeyWait("RButton")  ; Wait for RButton to be released to prevent re-trigger
+        scrollSpeed := 0
+        SetTimer(AutoScroll, 0)
+        mButtonPressed := false
+        recentAutoScroll := true
+        lastAutoScrollTime := A_TickCount
+        CloseClipboardInterfaces()
+        KeyWait("RButton")
+        FileAppend("RButton pressed: Auto-scroll stopped.\n", logFile)
         return
     }
-    if GetKeyState("LButton", "P")  ; If LButton is held
+    if GetKeyState("LButton", "P")
     {
-        ; Add a small delay to stabilize key detection
-        Sleep(10)
-        rButtonPressCount += 1  ; Increment press counter
-        ; Debug log
-        FileAppend("RButton press detected. Count: " rButtonPressCount " Time: " A_TickCount "`n", logFile)
-        
-        if (rButtonPressCount = 1)
-        {
-            ; First press: Execute the copy action
-            Send("^c")  ; Ctrl + C (copy)
-            mButtonPressed := true  ; Suppress context menu
-            lastRButtonTime := A_TickCount
-            rButtonPressTime := A_TickCount
-            KeyWait("RButton")  ; Wait for RButton to be released
-            FileAppend("Copy executed. Count: " rButtonPressCount "`n", logFile)
-            return
-        }
-        else if (rButtonPressCount >= 2)
-        {
-            ; Second press: Execute select all
-            Send("^a")  ; Ctrl + A (select all)
-            mButtonPressed := true  ; Suppress context menu
-            lastRButtonTime := 0  ; Reset the timer
-            rButtonPressTime := 0  ; Reset the first press time
-            KeyWait("RButton")  ; Wait for RButton to be released
-            FileAppend("Select All executed. Count: " rButtonPressCount "`n", logFile)
-            return
-        }
+        copyTriggered := true
+        mButtonPressed := true
+        Send("^c")
+        xButton1OtherButtons := true
+        xButton2OtherButtons := true
+        FileAppend("RButton pressed with LButton held: Sent Ctrl+C (copy), mButtonPressed=" mButtonPressed ", copyTriggered=" copyTriggered ".\n", logFile)
+        KeyWait("RButton")
+        KeyWait("LButton", "T0.5")
+        CloseClipboardInterfaces()
+        mButtonPressed := false
+        copyTriggered := false
+        return
     }
-    ; Reset state at start of RButton press
+    if GetKeyState("XButton1", "P")
+    {
+        Send("^a")
+        mButtonPressed := true
+        selectAllTriggered := true
+        xButton2OtherButtons := true
+        FileAppend("RButton pressed with XButton1 held: Sent Ctrl+A (select all).\n", logFile)
+        KeyWait("RButton")
+        CloseClipboardInterfaces()
+        return
+    }
+    if GetKeyState("XButton2", "P")
+    {
+        currentTime := A_TickCount
+        if (currentTime - lastRButtonTime > 200)
+        {
+            Send("^z")
+            mButtonPressed := true
+            undoTriggered := true
+            lastRButtonTime := currentTime
+            xButton1OtherButtons := true
+            FileAppend("RButton pressed with XButton2 held: Sent Ctrl+Z (undo). Time: " currentTime ".\n", logFile)
+        }
+        else
+        {
+            FileAppend("RButton pressed with XButton2 held: Undo skipped due to debounce. Time: " currentTime ".\n", logFile)
+        }
+        KeyWait("RButton")
+        CloseClipboardInterfaces()
+        return
+    }
+    if GetKeyState("MButton", "P")
+        xButton1OtherButtons := true
+        xButton2OtherButtons := true
     mButtonPressed := false
     scrollCount := 0
-    KeyWait("RButton")  ; Wait for the physical button to be released
+    FileAppend("RButton pressed: mButtonPressed=" mButtonPressed ".\n", logFile)
+    KeyWait("RButton")
     return
 }
 
-; Right mouse button release: Handle context menu and stop auto-scroll in Mode 1
 RButton Up::
 {
-    global mButtonPressed, autoScrollActive, autoScrollMode
-    if (autoScrollMode = 1 && autoScrollActive)  ; Stop auto-scroll in Mode 1
+    global mButtonPressed, autoScrollActive, autoScrollMode, recentAutoScroll, lastContextMenuCloseTime, lastAutoScrollTime, lastSaveTime, rButtonOtherButtons
+    if (autoScrollMode = 1 && autoScrollActive)
     {
         autoScrollActive := false
-        SetTimer(AutoScroll, 0)  ; Stop the timer
-        FileAppend("RButton released. Auto-scroll stopped in Mode 1.`n", logFile)
+        scrollSpeed := 0
+        SetTimer(AutoScroll, 0)
+        mButtonPressed := true
+        recentAutoScroll := true
+        lastAutoScrollTime := A_TickCount
+        CloseClipboardInterfaces()
+        FileAppend("RButton released: Auto-scroll stopped in Mode 1.\n", logFile)
     }
-    ; Only simulate right-click if no MButton, scroll events, or auto-scroll stop occurred
-    if (!mButtonPressed)
+    currentTime := A_TickCount
+    if (!mButtonPressed && !recentAutoScroll && !rButtonOtherButtons && (currentTime - lastContextMenuCloseTime > 200) && (currentTime - lastAutoScrollTime > 1000) && (currentTime - lastSaveTime > 1000))
     {
-        Send("{RButton}")  ; Simulate right-click to open context menu
+        Sleep(50)
+        Send("{RButton}")
+        FileAppend("RButton released: Sent RButton (context menu) at " currentTime ", mButtonPressed=" mButtonPressed ".\n", logFile)
     }
-    CloseContextMenu()  ; Always close any lingering context menu
-    mButtonPressed := false  ; Reset state
+    else
+    {
+        FileAppend("RButton released: Skipped context menu due to mButtonPressed=" mButtonPressed ", recentAutoScroll=" recentAutoScroll ", rButtonOtherButtons=" rButtonOtherButtons ", lastContextMenuCloseTime=" lastContextMenuCloseTime ", lastAutoScrollTime=" lastAutoScrollTime ", lastSaveTime=" lastSaveTime ".\n", logFile)
+        CloseClipboardInterfaces()
+    }
+    mButtonPressed := false
+    recentAutoScroll := false
+    rButtonOtherButtons := false
+    FileAppend("RButton Up: mButtonPressed=" mButtonPressed ", rButtonOtherButtons=" rButtonOtherButtons ".\n", logFile)
     return
 }
 
-; Left mouse button press: Handle RButton-held logic or stop auto-scroll
 LButton::
 {
-    global autoScrollActive, mButtonPressed, scrollCount, rButtonPressCount
-    if (autoScrollActive)  ; Stop auto-scroll on any button press
+    global autoScrollActive, mButtonPressed, scrollCount, rButtonPressCount, copyTriggered, saveTriggered, recentAutoScroll, lastAutoScrollTime, lastSaveTime, xButton1OtherButtons, xButton2OtherButtons, rButtonOtherButtons
+    if (autoScrollActive)
     {
         autoScrollActive := false
-        SetTimer(AutoScroll, 0)  ; Stop the timer
-        Send("{LButton up}")  ; Ensure LButton is released
-        CloseContextMenu()  ; Force-close any open context menu
-        FileAppend("LButton pressed during auto-scroll. Reset rButtonPressCount to 0`n", logFile)
+        scrollSpeed := 0
+        SetTimer(AutoScroll, 0)
+        Send("{LButton up}")
+        mButtonPressed := true
+        recentAutoScroll := true
+        lastAutoScrollTime := A_TickCount
+        CloseClipboardInterfaces()
+        FileAppend("LButton pressed during auto-scroll. Reset rButtonPressCount to 0 at " A_TickCount ".\n", logFile)
         return
     }
-    if GetKeyState("RButton", "P")  ; If RButton is held
+    if GetKeyState("XButton2", "P")
     {
-        mButtonPressed := true  ; Set flag to suppress context menu
-        Send("{Enter}")  ; Send Enter key
+        saveTriggered := true
+        mButtonPressed := true
+        xButton2OtherButtons := true
+        Send("^s")
+        lastSaveTime := A_TickCount
+        FileAppend("LButton pressed with XButton2 held: Sent Ctrl+S (save) at " lastSaveTime ".\n", logFile)
+        KeyWait("LButton")
+        mButtonPressed := false
+        CloseClipboardInterfaces()
         return
     }
-    ; Reset state at start of LButton press
-    mButtonPressed := false
+    if GetKeyState("RButton", "P")
+        rButtonOtherButtons := true
+    if GetKeyState("XButton1", "P")
+        xButton1OtherButtons := true
+    if GetKeyState("MButton", "P")
+        xButton1OtherButtons := true
+        xButton2OtherButtons := true
+    mButtonPressed := true
     scrollCount := 0
-    rButtonPressCount := 0  ; Reset RButton press counter
-    FileAppend("LButton pressed. Reset rButtonPressCount to 0`n", logFile)
-    Send("{LButton down}")  ; Normal left-click down to allow dragging
+    rButtonPressCount := 0
+    FileAppend("LButton pressed: mButtonPressed=" mButtonPressed ".\n", logFile)
+    Send("{LButton down}")
     return
 }
 
-; Left mouse button release: Handle normal click and stop auto-scroll in Mode 1
 LButton Up::
 {
-    global autoScrollActive, mButtonPressed, rButtonPressCount, autoScrollMode
-    if (autoScrollMode = 1 && autoScrollActive)  ; Stop auto-scroll in Mode 1
+    global autoScrollActive, mButtonPressed, rButtonPressCount, autoScrollMode, recentAutoScroll, lastAutoScrollTime, saveTriggered
+    if (autoScrollMode = 1 && autoScrollActive)
     {
         autoScrollActive := false
-        SetTimer(AutoScroll, 0)  ; Stop the timer
-        FileAppend("LButton released. Auto-scroll stopped in Mode 1.`n", logFile)
+        scrollSpeed := 0
+        SetTimer(AutoScroll, 0)
+        mButtonPressed := true
+        recentAutoScroll := true
+        lastAutoScrollTime := A_TickCount
+        CloseClipboardInterfaces()
+        FileAppend("LButton released: Auto-scroll stopped in Mode 1.\n", logFile)
     }
-    ; Always send LButton up to ensure release
-    Send("{LButton up}")  ; Normal left-click up to complete drag
-    rButtonPressCount := 0  ; Reset RButton press counter
-    CloseContextMenu()  ; Force-close any open context menu
-    FileAppend("LButton released. Reset rButtonPressCount to 0`n", logFile)
+    Send("{LButton up}")
+    rButtonPressCount := 0
+    mButtonPressed := false
+    saveTriggered := false
+    CloseClipboardInterfaces()
+    FileAppend("LButton released: Reset rButtonPressCount to 0, mButtonPressed=" mButtonPressed ", saveTriggered=" saveTriggered ".\n", logFile)
     return
 }

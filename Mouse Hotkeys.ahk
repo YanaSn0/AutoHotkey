@@ -204,7 +204,7 @@ MButton::
         FileAppend("MButton stopped auto-scroll. Mode: " autoScrollMode "\n", logFile)
         return
     }
-    if GetKeyState("RButton", "P")
+    if GetKeyState("LButton", "P") ; Toggle auto-scroll mode with LButton + MButton
     {
         if (autoScrollMode = 1)
         {
@@ -220,6 +220,17 @@ MButton::
         xButton1OtherButtons := true
         xButton2OtherButtons := true
         CloseClipboardInterfaces()
+        FileAppend("MButton pressed with LButton held: Toggled auto-scroll mode to " autoScrollMode ".\n", logFile)
+        return
+    }
+    if GetKeyState("RButton", "P") ; Send Enter with RButton + MButton
+    {
+        Send("{Enter}")
+        mButtonPressed := true
+        xButton1OtherButtons := true
+        xButton2OtherButtons := true
+        CloseClipboardInterfaces()
+        FileAppend("MButton pressed with RButton held: Sent Enter.\n", logFile)
         return
     }
     if GetKeyState("XButton1", "P")

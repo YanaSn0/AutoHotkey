@@ -1,8 +1,10 @@
 # Autohotkey script
 
-Download and install Autohotkey V2 and Ditto then double click the script.
+Download and install Autohotkey V2 and Ditto.
 
-https://www.autohotkey.com/ https://ditto-cp.sourceforge.io/
+https://www.autohotkey.com/
+
+https://ditto-cp.sourceforge.io/
 
 Paste: Wheel click
 

@@ -16,7 +16,7 @@ Select all: X1 + right
 
 Save: X2 + left
 
-Copy: X2 + right
+Copy: left + right
 
 Paste: Wheel click
 

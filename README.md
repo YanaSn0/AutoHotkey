@@ -18,8 +18,8 @@ Save: X2 + left
 
 Copy: X2 + right
 
-Fail Safe: Ctrl + Shift + Escape.
-
 Auto scroll: Alt + Page up or down. One time for 400ms two for 1ms three times or page up/down to stop.
 
-Database file: 3 dot bottom right restore or backup.
+Fail Safe: Ctrl + Shift + Escape.
+
+Ditto database: 3 dot bottom right restore or backup.

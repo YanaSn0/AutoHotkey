@@ -1,6 +1,11 @@
 #SingleInstance Force
 SetWorkingDir A_ScriptDir
 
+; Initialize global variables
+global scrollState := 0 ; 0 = stopped, 1 = 400 ms, 2 = 1 ms
+global scrollDirection := 0 ; 0 = none, 1 = down, -1 = up
+global lButtonPressed := false ; Track Left Click state
+
 ; Block default context menu for XButton1 + RButton
 XButton1 & RButton::{
     Send "{Ctrl down}"
@@ -41,11 +46,8 @@ XButton2 & LButton::{
     return
 }
 
-; XButton2 + Right Click = Copy (Ctrl + C)
+; XButton2 + Right Click = Do nothing
 XButton2 & RButton::{
-    Send "{Ctrl down}"
-    Send "c"
-    Send "{Ctrl up}"
     return
 }
 
@@ -57,11 +59,44 @@ XButton2 Up::{
     return
 }
 
-; --- Keyboard Auto-Scroll Additions ---
+; Left Click held + Right Click = Copy (Ctrl + C)
+RButton::{
+    global lButtonPressed
+    if (lButtonPressed && !GetKeyState("XButton1", "P") && !GetKeyState("XButton2", "P")) {
+        ; Close context menu if open
+        if WinExist("ahk_class #32768") {
+            Send "{Esc}"
+            Sleep 50
+        }
+        Send "{Ctrl down}"
+        Send "c"
+        Send "{Ctrl up}"
+        KeyWait "RButton" ; Wait for RButton release
+        return
+    }
+    ; Normal Right Click behavior
+    Send "{RButton down}"
+    KeyWait "RButton"
+    Send "{RButton up}"
+    return
+}
 
-; Initialize global variables
-global scrollState := 0 ; 0 = stopped, 1 = 400 ms, 2 = 1 ms
-global scrollDirection := 0 ; 0 = none, 1 = down, -1 = up
+; Track Left Click state
+LButton::{
+    global lButtonPressed
+    lButtonPressed := true
+    Send "{LButton down}"
+    return
+}
+
+LButton Up::{
+    global lButtonPressed
+    lButtonPressed := false
+    Send "{LButton up}"
+    return
+}
+
+; --- Keyboard Auto-Scroll Additions ---
 
 ; Alt + Page Down for auto-scroll down
 !PgDn::{

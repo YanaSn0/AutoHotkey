@@ -1,4 +1,4 @@
-# Autohotkey script
+# Mouse keybinds
 
 Download and install Autohotkey V2 and Ditto.
 

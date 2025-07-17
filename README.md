@@ -4,17 +4,15 @@ Download and install Autohotkey V2 and Ditto then double click the script.
 
 https://www.autohotkey.com/ https://ditto-cp.sourceforge.io/
 
-Copy: Right click while holding left
-
-Select all: Right click while holding Xbutton1 (back side button).
-
-Save: Left click while holding XButton2 (front side button).
-
-Undo: Right click while holding XButton2 (front side button).
-
 Paste: Wheel click
 
-Enter: Wheel click while holding right click.
+Enter: X1 + left
+
+Select all: X1 + right
+
+Save: X2 + left
+
+Copy: X2 + right
 
 Up and down: 2 side buttons while holding right.
 

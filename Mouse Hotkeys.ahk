@@ -2,7 +2,7 @@
 SetWorkingDir A_ScriptDir
 
 ; Initialize global variables
-global scrollState := 0 ; 0 = stopped, 1 = 400 ms, 2 = 1 ms
+global scrollState := 0 ; 0 = stopped, 1 = scrolling
 global scrollDirection := 0 ; 0 = none, 1 = down, -1 = up
 global lButtonPressed := false ; Track Left Click state
 
@@ -107,18 +107,14 @@ LButton Up::{
     {
         scrollState := 1
         scrollDirection := 1
-        SetTimer ScrollDown, 400
-    }
-    else if (scrollState = 1)
-    {
-        scrollState := 2
         SetTimer ScrollDown, 1
     }
-    else if (scrollState = 2)
+    else
     {
         scrollState := 0
         scrollDirection := 0
         SetTimer ScrollDown, 0
+        SetTimer ScrollUp, 0
     }
     return
 }
@@ -132,24 +128,37 @@ LButton Up::{
     {
         scrollState := 1
         scrollDirection := -1
-        SetTimer ScrollUp, 400
-    }
-    else if (scrollState = 1)
-    {
-        scrollState := 2
         SetTimer ScrollUp, 1
     }
-    else if (scrollState = 2)
+    else
     {
         scrollState := 0
         scrollDirection := 0
+        SetTimer ScrollDown, 0
         SetTimer ScrollUp, 0
     }
     return
 }
 
-; Page Down or Page Up to cancel auto-scroll
-PgDn::
+; Page Down or Page Up behavior
+PgDn::{
+    global scrollState, scrollDirection
+    if (scrollState > 0)
+    {
+        scrollState := 0
+        scrollDirection := 0
+        SetTimer ScrollDown, 0
+        SetTimer ScrollUp, 0
+        ToolTip "Scroll canceled", 0, 20 ; Debug
+        SetTimer () => ToolTip(), -2000
+    }
+    else
+    {
+        Send "{PgDn}"
+    }
+    return
+}
+
 PgUp::{
     global scrollState, scrollDirection
     if (scrollState > 0)
@@ -160,6 +169,10 @@ PgUp::{
         SetTimer ScrollUp, 0
         ToolTip "Scroll canceled", 0, 20 ; Debug
         SetTimer () => ToolTip(), -2000
+    }
+    else
+    {
+        Send "{PgUp}"
     }
     return
 }

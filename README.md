@@ -20,7 +20,7 @@ Copy: left + right
 
 Paste: Wheel click
 
-Auto scroll: Alt + Page up or down. One time for 1ms two times to stop or page up/down.
+Auto scroll: Alt + Page up/down. One time for 1ms two times or page up/down to stop.
 
 Fail Safe: Ctrl + Shift + Escape.
 

@@ -6,6 +6,14 @@ global scrollState := 0 ; 0 = stopped, 1 = scrolling
 global scrollDirection := 0 ; 0 = none, 1 = down, -1 = up
 global lButtonPressed := false ; Track Left Click state
 
+; Toggle Suspend Hotkeys (e.g., map to F1 or Ditto button)
+F1::{
+    Suspend
+    ToolTip "Hotkeys " (A_IsSuspended ? "Suspended" : "Resumed"), 0, 0
+    SetTimer () => ToolTip(), -2000
+    return
+}
+
 ; Block default context menu for XButton1 + RButton
 XButton1 & RButton::{
     Send "{Ctrl down}"
@@ -20,7 +28,7 @@ XButton1 & LButton::{
     return
 }
 
-; XButton1 release sends Ctrl + ` only if no other buttons are pressed
+; XButton1 release sends Ctrl + `
 XButton1 Up::{
     if (!GetKeyState("LButton", "P") && !GetKeyState("RButton", "P")) {
         Send "{Ctrl down}"
@@ -30,7 +38,7 @@ XButton1 Up::{
     return
 }
 
-; MButton release pastes clipboard (no checks)
+; MButton release pastes clipboard
 MButton Up::{
     Send "{Ctrl down}"
     Send "v"
@@ -51,7 +59,7 @@ XButton2 & RButton::{
     return
 }
 
-; XButton2 release toggles Windows clipboard, only if Left or Right were not pressed
+; XButton2 release toggles Windows clipboard
 XButton2 Up::{
     if (!GetKeyState("LButton", "P") && !GetKeyState("RButton", "P")) {
         Send "#{v}"
@@ -63,7 +71,6 @@ XButton2 Up::{
 RButton::{
     global lButtonPressed
     if (lButtonPressed && !GetKeyState("XButton1", "P") && !GetKeyState("XButton2", "P")) {
-        ; Close context menu if open
         if WinExist("ahk_class #32768") {
             Send "{Esc}"
             Sleep 50
@@ -71,10 +78,9 @@ RButton::{
         Send "{Ctrl down}"
         Send "c"
         Send "{Ctrl up}"
-        KeyWait "RButton" ; Wait for RButton release
+        KeyWait "RButton"
         return
     }
-    ; Normal Right Click behavior
     Send "{RButton down}"
     KeyWait "RButton"
     Send "{RButton up}"
@@ -101,16 +107,13 @@ LButton Up::{
 ; Alt + Page Down for auto-scroll down
 !PgDn::{
     global scrollState, scrollDirection
-    ToolTip "Alt + PgDn pressed, State: " scrollState, 0, 0 ; Debug
+    ToolTip "Alt + PgDn pressed, State: " scrollState, 0, 0
     SetTimer () => ToolTip(), -2000
-    if (scrollState = 0)
-    {
+    if (scrollState = 0) {
         scrollState := 1
         scrollDirection := 1
         SetTimer ScrollDown, 1
-    }
-    else
-    {
+    } else {
         scrollState := 0
         scrollDirection := 0
         SetTimer ScrollDown, 0
@@ -122,16 +125,13 @@ LButton Up::{
 ; Alt + Page Up for auto-scroll up
 !PgUp::{
     global scrollState, scrollDirection
-    ToolTip "Alt + PgUp pressed, State: " scrollState, 0, 0 ; Debug
+    ToolTip "Alt + PgUp pressed, State: " scrollState, 0, 0
     SetTimer () => ToolTip(), -2000
-    if (scrollState = 0)
-    {
+    if (scrollState = 0) {
         scrollState := 1
         scrollDirection := -1
         SetTimer ScrollUp, 1
-    }
-    else
-    {
+    } else {
         scrollState := 0
         scrollDirection := 0
         SetTimer ScrollDown, 0
@@ -143,17 +143,14 @@ LButton Up::{
 ; Page Down or Page Up behavior
 PgDn::{
     global scrollState, scrollDirection
-    if (scrollState > 0)
-    {
+    if (scrollState > 0) {
         scrollState := 0
         scrollDirection := 0
         SetTimer ScrollDown, 0
         SetTimer ScrollUp, 0
-        ToolTip "Scroll canceled", 0, 20 ; Debug
+        ToolTip "Scroll canceled", 0, 20
         SetTimer () => ToolTip(), -2000
-    }
-    else
-    {
+    } else {
         Send "{PgDn}"
     }
     return
@@ -161,25 +158,21 @@ PgDn::{
 
 PgUp::{
     global scrollState, scrollDirection
-    if (scrollState > 0)
-    {
+    if (scrollState > 0) {
         scrollState := 0
         scrollDirection := 0
         SetTimer ScrollDown, 0
         SetTimer ScrollUp, 0
-        ToolTip "Scroll canceled", 0, 20 ; Debug
+        ToolTip "Scroll canceled", 0, 20
         SetTimer () => ToolTip(), -2000
-    }
-    else
-    {
+    } else {
         Send "{PgUp}"
     }
     return
 }
 
 ; Scroll Down function
-ScrollDown()
-{
+ScrollDown() {
     global scrollDirection
     if (scrollDirection = 1)
         Send "{WheelDown}"
@@ -187,8 +180,7 @@ ScrollDown()
 }
 
 ; Scroll Up function
-ScrollUp()
-{
+ScrollUp() {
     global scrollDirection
     if (scrollDirection = -1)
         Send "{WheelUp}"

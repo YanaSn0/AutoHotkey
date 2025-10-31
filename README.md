@@ -29,3 +29,7 @@ Ditto database: 3 dot bottom right restore or backup.
 May need to suspend hotkeys (right click tray) to use other apps and or move stuff to other desktops via taskview.
 
 Run as admin to avoid admin apps conflicting.
+
+
+<img width="1600" height="900" alt="25-10-30_20h-04m-39s-093ms" src="https://github.com/user-attachments/assets/dc7a3c4c-62a3-4b45-b4d2-c29c968c9da3" />
+

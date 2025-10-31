@@ -27,3 +27,5 @@ Fail Safe: Ctrl + Shift + Escape.
 Ditto database: 3 dot bottom right restore or backup.
 
 May need to suspend hotkeys (right click tray) to use other apps and or move stuff to other desktops via taskview.
+
+Run as admin to avoid admin apps conflicting.
